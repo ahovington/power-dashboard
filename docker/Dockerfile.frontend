@@ -8,8 +8,10 @@ RUN npm ci --ignore-scripts
 
 COPY frontend/ .
 
-ARG VITE_API_URL=/api
+ARG VITE_API_URL=
 ENV VITE_API_URL=$VITE_API_URL
+ARG VITE_DEVICE_ID=fa4eda7a-0000-4000-a000-000000000001
+ENV VITE_DEVICE_ID=$VITE_DEVICE_ID
 RUN npm run build
 
 # ── Stage 2: serve ───────────────────────────────────────────────────────────

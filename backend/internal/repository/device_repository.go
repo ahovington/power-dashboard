@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ahovingtonpower-dashboard/internal/model"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/yourusername/power-dashboard/internal/model"
 )
 
 type DeviceRepository struct {

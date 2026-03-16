@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	"github.com/yourusername/power-dashboard/internal/api"
-	"github.com/yourusername/power-dashboard/internal/model"
-	"github.com/yourusername/power-dashboard/internal/service"
+	"github.com/ahovingtonpower-dashboard/internal/api"
+	"github.com/ahovingtonpower-dashboard/internal/model"
+	"github.com/ahovingtonpower-dashboard/internal/service"
 )
 
 func TestGetCurrentStatus_ValidDevice(t *testing.T) {

@@ -14,11 +14,11 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/yourusername/power-dashboard/internal/api"
-	"github.com/yourusername/power-dashboard/internal/config"
-	"github.com/yourusername/power-dashboard/internal/model"
-	"github.com/yourusername/power-dashboard/internal/repository"
-	"github.com/yourusername/power-dashboard/internal/service"
+	"github.com/ahovingtonpower-dashboard/internal/api"
+	"github.com/ahovingtonpower-dashboard/internal/config"
+	"github.com/ahovingtonpower-dashboard/internal/model"
+	"github.com/ahovingtonpower-dashboard/internal/repository"
+	"github.com/ahovingtonpower-dashboard/internal/service"
 )
 
 func main() {
@@ -79,7 +79,7 @@ func main() {
 	}()
 
 	// Start one IngestionService per configured provider
-	for _, p := range service.BuildProviders(time.NewTicker(cfg.PollInterval).C) {
+	for _, p := range service.BuildProviders(cfg, time.NewTicker(cfg.PollInterval).C) {
 		svc := service.NewIngestionService(p.Adapter, readingRepo, eventBus, p.DeviceID, p.Trigger)
 		go svc.RunPoller(ctx)
 	}

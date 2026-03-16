@@ -12,7 +12,7 @@
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/yourusername/power-dashboard.git
+git clone https://github.com/ahovingtonpower-dashboard.git
 cd power-dashboard
 ```
 

@@ -1,4 +1,4 @@
-module github.com/yourusername/power-dashboard
+module github.com/ahovingtonpower-dashboard
 
 go 1.21
 

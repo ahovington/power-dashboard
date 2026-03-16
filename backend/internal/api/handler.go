@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ahovingtonpower-dashboard/internal/model"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/yourusername/power-dashboard/internal/model"
 )
 
-//go:generate mockgen -destination=../service/mock_power_servicer.go -package=service -mock_names PowerServicer=MockPowerServicer github.com/yourusername/power-dashboard/internal/api PowerServicer
+//go:generate mockgen -destination=../service/mock_power_servicer.go -package=service -mock_names PowerServicer=MockPowerServicer github.com/ahovingtonpower-dashboard/internal/api PowerServicer
 
 // PowerServicer is the interface the handler uses to query power data.
 // The concrete *service.PowerService satisfies this.

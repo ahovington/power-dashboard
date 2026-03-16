@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ahovingtonpower-dashboard/internal/model"
+	"github.com/ahovingtonpower-dashboard/internal/repository"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -13,8 +15,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/yourusername/power-dashboard/internal/model"
-	"github.com/yourusername/power-dashboard/internal/repository"
 )
 
 func setupDB(t *testing.T) *pgxpool.Pool {

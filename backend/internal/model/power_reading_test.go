@@ -3,8 +3,8 @@ package model_test
 import (
 	"testing"
 
+	"github.com/ahovingtonpower-dashboard/internal/model"
 	"github.com/stretchr/testify/assert"
-	"github.com/yourusername/power-dashboard/internal/model"
 )
 
 func TestPowerReading_PowerNet(t *testing.T) {

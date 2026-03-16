@@ -18,9 +18,17 @@ type Config struct {
 	EnphaseSystemID string
 
 	PollInterval time.Duration
+
+	FakeProvider bool
+	FakeSeed     int64
 }
 
 func Load() (*Config, error) {
+	fakeSeed, err := strconv.ParseInt(getEnv("FAKE_SEED", "0"), 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("config: invalid FAKE_SEED: %w", err)
+	}
+
 	cfg := &Config{
 		Env:               getEnv("GO_ENV", "development"),
 		LogLevel:          getEnv("LOG_LEVEL", "info"),
@@ -28,6 +36,8 @@ func Load() (*Config, error) {
 		CORSAllowedOrigin: getEnv("CORS_ALLOWED_ORIGIN", "http://localhost:3000"),
 		EnphaseAPIKey:     os.Getenv("ENPHASE_API_KEY"),
 		EnphaseSystemID:   os.Getenv("ENPHASE_SYSTEM_ID"),
+		FakeProvider:      os.Getenv("FAKE_PROVIDER") == "true",
+		FakeSeed:          fakeSeed,
 	}
 
 	cfg.DatabaseURL = requireEnv("DATABASE_URL")

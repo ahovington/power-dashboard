@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ahovingtonpower-dashboard/internal/model"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/yourusername/power-dashboard/internal/model"
 )
 
 type ReadingRepository struct {

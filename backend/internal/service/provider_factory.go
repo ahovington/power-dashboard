@@ -2,12 +2,13 @@ package service
 
 import (
 	"log/slog"
-	"os"
 	"time"
 
+	"github.com/ahovingtonpower-dashboard/internal/config"
+	"github.com/ahovingtonpower-dashboard/pkg/adapter"
+	"github.com/ahovingtonpower-dashboard/pkg/enphase"
+	"github.com/ahovingtonpower-dashboard/pkg/fake"
 	"github.com/google/uuid"
-	"github.com/yourusername/power-dashboard/pkg/adapter"
-	"github.com/yourusername/power-dashboard/pkg/enphase"
 )
 
 // ProviderIngestionConfig holds what's needed to start one IngestionService.
@@ -17,20 +18,29 @@ type ProviderIngestionConfig struct {
 	Trigger  <-chan time.Time
 }
 
-// BuildProviders returns one config per configured provider, based on env var presence.
-// If ENPHASE_API_KEY is set, an Enphase provider is created. Future providers follow
-// the same pattern (check their env var, append to slice).
-func BuildProviders(trigger <-chan time.Time) []ProviderIngestionConfig {
+// BuildProviders returns one config per configured provider, based on cfg.
+// Enphase is enabled when ENPHASE_API_KEY is set; the fake provider is enabled
+// when FAKE_PROVIDER=true. Future providers follow the same pattern.
+func BuildProviders(cfg *config.Config, trigger <-chan time.Time) []ProviderIngestionConfig {
 	var providers []ProviderIngestionConfig
 
-	if key := os.Getenv("ENPHASE_API_KEY"); key != "" {
+	if cfg.EnphaseAPIKey != "" {
 		slog.Info("provider: enphase configured")
 		providers = append(providers, ProviderIngestionConfig{
 			Adapter: enphase.NewAdapter(enphase.Config{
-				APIKey:   key,
-				SystemID: os.Getenv("ENPHASE_SYSTEM_ID"),
+				APIKey:   cfg.EnphaseAPIKey,
+				SystemID: cfg.EnphaseSystemID,
 			}),
 			DeviceID: uuid.New(), // TODO: load from devices table once DeviceRepository is wired
+			Trigger:  trigger,
+		})
+	}
+
+	if cfg.FakeProvider {
+		slog.Info("provider: fake configured (synthetic data)", "seed", cfg.FakeSeed)
+		providers = append(providers, ProviderIngestionConfig{
+			Adapter:  fake.NewAdapter(fake.FakeConfig{Seed: cfg.FakeSeed}),
+			DeviceID: fake.FakeDeviceID,
 			Trigger:  trigger,
 		})
 	}
@@ -41,3 +51,4 @@ func BuildProviders(trigger <-chan time.Time) []ProviderIngestionConfig {
 
 	return providers
 }
+

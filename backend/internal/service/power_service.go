@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ahovingtonpower-dashboard/internal/model"
 	"github.com/google/uuid"
-	"github.com/yourusername/power-dashboard/internal/model"
 )
 
 //go:generate mockgen -source=power_service.go -destination=mock_reading_querier.go -package=service

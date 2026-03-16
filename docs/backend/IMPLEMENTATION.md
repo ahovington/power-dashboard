@@ -18,7 +18,7 @@ No tests yet — pure setup that everything else depends on.
 ### `backend/go.mod`
 
 ```go
-module github.com/yourusername/power-dashboard
+module github.com/ahovingtonpower-dashboard
 
 go 1.21
 
@@ -53,7 +53,7 @@ package model_test
 import (
     "testing"
     "github.com/stretchr/testify/assert"
-    "github.com/yourusername/power-dashboard/internal/model"
+    "github.com/ahovingtonpower-dashboard/internal/model"
 )
 
 func TestPowerReading_PowerNet(t *testing.T) {
@@ -254,8 +254,8 @@ import (
 
     "github.com/stretchr/testify/assert"
     "github.com/stretchr/testify/require"
-    "github.com/yourusername/power-dashboard/pkg/adapter"
-    "github.com/yourusername/power-dashboard/pkg/enphase"
+    "github.com/ahovingtonpower-dashboard/pkg/adapter"
+    "github.com/ahovingtonpower-dashboard/pkg/enphase"
 )
 
 func TestGetSystemStatus_OK(t *testing.T) {
@@ -407,7 +407,7 @@ import (
     "net/http"
     "time"
 
-    "github.com/yourusername/power-dashboard/pkg/adapter"
+    "github.com/ahovingtonpower-dashboard/pkg/adapter"
 )
 
 const defaultBaseURL = "https://api.enphaseenergy.com/api/v4"
@@ -540,8 +540,8 @@ import (
     "github.com/jackc/pgx/v5/pgxpool"
     "github.com/stretchr/testify/assert"
     "github.com/stretchr/testify/require"
-    "github.com/yourusername/power-dashboard/internal/model"
-    "github.com/yourusername/power-dashboard/internal/repository"
+    "github.com/ahovingtonpower-dashboard/internal/model"
+    "github.com/ahovingtonpower-dashboard/internal/repository"
 )
 
 func setupDB(t *testing.T) *pgxpool.Pool {
@@ -653,7 +653,7 @@ import (
 
     "github.com/google/uuid"
     "github.com/jackc/pgx/v5/pgxpool"
-    "github.com/yourusername/power-dashboard/internal/model"
+    "github.com/ahovingtonpower-dashboard/internal/model"
 )
 
 type ReadingRepository struct {
@@ -807,7 +807,7 @@ import (
     "fmt"
 
     "github.com/jackc/pgx/v5/pgxpool"
-    "github.com/yourusername/power-dashboard/internal/model"
+    "github.com/ahovingtonpower-dashboard/internal/model"
 )
 
 type DeviceRepository struct {
@@ -880,9 +880,9 @@ import (
     "github.com/stretchr/testify/require"
     "go.uber.org/mock/gomock"
 
-    "github.com/yourusername/power-dashboard/internal/model"
-    "github.com/yourusername/power-dashboard/internal/service"
-    "github.com/yourusername/power-dashboard/pkg/adapter"
+    "github.com/ahovingtonpower-dashboard/internal/model"
+    "github.com/ahovingtonpower-dashboard/internal/service"
+    "github.com/ahovingtonpower-dashboard/pkg/adapter"
 )
 
 type stubRepo struct{ saved []*model.PowerReading }
@@ -1048,8 +1048,8 @@ import (
     "time"
 
     "github.com/google/uuid"
-    "github.com/yourusername/power-dashboard/internal/model"
-    "github.com/yourusername/power-dashboard/pkg/adapter"
+    "github.com/ahovingtonpower-dashboard/internal/model"
+    "github.com/ahovingtonpower-dashboard/pkg/adapter"
 )
 
 type ReadingWriter interface {
@@ -1204,8 +1204,8 @@ import (
     "github.com/stretchr/testify/require"
     "go.uber.org/mock/gomock"
 
-    "github.com/yourusername/power-dashboard/internal/model"
-    "github.com/yourusername/power-dashboard/internal/service"
+    "github.com/ahovingtonpower-dashboard/internal/model"
+    "github.com/ahovingtonpower-dashboard/internal/service"
 )
 
 func TestPowerService_GetCurrentStatus_ReturnsLatest(t *testing.T) {
@@ -1288,7 +1288,7 @@ import (
     "time"
 
     "github.com/google/uuid"
-    "github.com/yourusername/power-dashboard/internal/model"
+    "github.com/ahovingtonpower-dashboard/internal/model"
 )
 
 //go:generate mockgen -source=power_service.go -destination=mock_reading_querier.go -package=service
@@ -1347,8 +1347,8 @@ import (
 
     "github.com/stretchr/testify/assert"
     "github.com/stretchr/testify/require"
-    "github.com/yourusername/power-dashboard/internal/api"
-    "github.com/yourusername/power-dashboard/internal/model"
+    "github.com/ahovingtonpower-dashboard/internal/api"
+    "github.com/ahovingtonpower-dashboard/internal/model"
 )
 
 func TestHub_SingleClientReceivesEvent(t *testing.T) {
@@ -1503,7 +1503,7 @@ import (
     "net/http"
     "sync/atomic"
 
-    "github.com/yourusername/power-dashboard/internal/model"
+    "github.com/ahovingtonpower-dashboard/internal/model"
 )
 
 const sseClientBuffer = 16
@@ -1639,9 +1639,9 @@ import (
     "github.com/stretchr/testify/require"
     "go.uber.org/mock/gomock"
 
-    "github.com/yourusername/power-dashboard/internal/api"
-    "github.com/yourusername/power-dashboard/internal/model"
-    "github.com/yourusername/power-dashboard/internal/service"
+    "github.com/ahovingtonpower-dashboard/internal/api"
+    "github.com/ahovingtonpower-dashboard/internal/model"
+    "github.com/ahovingtonpower-dashboard/internal/service"
 )
 
 func TestGetCurrentStatus_ValidDevice(t *testing.T) {
@@ -1732,7 +1732,7 @@ Generate mock:
 mockgen -destination=internal/service/mock_power_servicer.go \
         -package=service \
         -mock_names PowerServicer=MockPowerServicer \
-        github.com/yourusername/power-dashboard/internal/service PowerServicer
+        github.com/ahovingtonpower-dashboard/internal/service PowerServicer
 ```
 
 ```bash
@@ -1754,10 +1754,10 @@ import (
     "time"
 
     "github.com/google/uuid"
-    "github.com/yourusername/power-dashboard/internal/model"
+    "github.com/ahovingtonpower-dashboard/internal/model"
 )
 
-//go:generate mockgen -destination=../service/mock_power_servicer.go -package=service -mock_names PowerServicer=MockPowerServicer github.com/yourusername/power-dashboard/internal/api PowerServicer
+//go:generate mockgen -destination=../service/mock_power_servicer.go -package=service -mock_names PowerServicer=MockPowerServicer github.com/ahovingtonpower-dashboard/internal/api PowerServicer
 type PowerServicer interface {
     GetCurrentStatus(ctx context.Context, deviceID uuid.UUID) (*model.PowerReading, error)
     GetHistory(ctx context.Context, deviceID uuid.UUID, interval string, start, end time.Time) ([]*model.PowerReading, error)
@@ -2010,9 +2010,9 @@ import (
     "time"
 
     "github.com/google/uuid"
-    "github.com/yourusername/power-dashboard/internal/model"
-    "github.com/yourusername/power-dashboard/pkg/adapter"
-    "github.com/yourusername/power-dashboard/pkg/enphase"
+    "github.com/ahovingtonpower-dashboard/internal/model"
+    "github.com/ahovingtonpower-dashboard/pkg/adapter"
+    "github.com/ahovingtonpower-dashboard/pkg/enphase"
 )
 
 // ProviderIngestionConfig holds what's needed to start one IngestionService.
@@ -2082,11 +2082,11 @@ import (
     _ "github.com/golang-migrate/migrate/v4/source/file"
     "github.com/jackc/pgx/v5/pgxpool"
 
-    "github.com/yourusername/power-dashboard/internal/api"
-    "github.com/yourusername/power-dashboard/internal/config"
-    "github.com/yourusername/power-dashboard/internal/model"
-    "github.com/yourusername/power-dashboard/internal/repository"
-    "github.com/yourusername/power-dashboard/internal/service"
+    "github.com/ahovingtonpower-dashboard/internal/api"
+    "github.com/ahovingtonpower-dashboard/internal/config"
+    "github.com/ahovingtonpower-dashboard/internal/model"
+    "github.com/ahovingtonpower-dashboard/internal/repository"
+    "github.com/ahovingtonpower-dashboard/internal/service"
 )
 
 func main() {

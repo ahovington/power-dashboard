@@ -23,32 +23,64 @@ A comprehensive energy monitoring application that integrates with solar inverte
 ## Quick Start
 
 ### Prerequisites
-- Docker & Docker Compose
+
+- [Docker & Docker Compose](https://docs.docker.com/get-docker/)
+- [just](https://github.com/casey/just) — command runner (`brew install just`)
 - Git
 
 ### Setup
 
 ```bash
-git clone https://github.com/yourusername/power-dashboard.git
+git clone https://github.com/ahovington/power-dashboard.git
 cd power-dashboard
-docker-compose up -d
+cp .env.example .env   # edit values as needed
+just up                # build images and start all services
+just seed              # seed 30 days of fake solar data
 ```
 
-Access the application at `http://localhost:3000`
+Access the application at `http://localhost`.
+
+### Common commands
+
+| Command | Description |
+|---|---|
+| `just up` | Build and start all services |
+| `just stop` | Stop services (data preserved) |
+| `just down` | Remove containers (data preserved) |
+| `just reset` | Remove containers + DB volume |
+| `just logs` | Tail logs from all services |
+| `just log backend` | Tail logs from one service |
+| `just seed` | Seed 30 days of fake data (seed=42) |
+| `just seed 7 99` | Seed 7 days with a custom seed |
+| `just rebuild backend` | Rebuild and restart one service |
+| `just test` | Run backend test suite |
+
+### Fake / demo data
+
+To run without real Enphase credentials, set in `.env`:
+
+```
+FAKE_PROVIDER=true
+FAKE_SEED=42   # omit or set to 0 for non-deterministic data
+```
+
+Then seed historical data so the history charts have data to display:
+
+```bash
+just seed        # 30 days, deterministic seed=42
+just seed 90 0   # 90 days, random seed
+```
 
 ### Environment Variables
 
-Create a `.env` file in the root directory:
+Copy `.env.example` to `.env` and fill in your values. Key variables:
 
 ```
-# Backend
-GO_ENV=development
-DATABASE_URL=postgres://postgres:password@db:5432/power_monitor
-ENPHASE_API_KEY=your_enphase_key
+DATABASE_URL=postgres://postgres:changeme@db:5432/power_monitor?sslmode=disable
+ENPHASE_API_KEY=your_enphase_key   # leave blank to use fake provider
 ENPHASE_SYSTEM_ID=your_system_id
-
-# Frontend
-REACT_APP_API_URL=http://localhost:8080
+FAKE_PROVIDER=false
+FAKE_SEED=0
 ```
 
 ## Project Structure
@@ -64,10 +96,9 @@ power-dashboard/
 
 ## Documentation
 
-- [Architecture Design](./docs/architecture/DESIGN.md)
-- [API Integration Guide](./docs/api/INTEGRATION.md)
-- [Database Schema](./docs/database/SCHEMA.md)
-- [Development Guide](./docs/DEVELOPMENT.md)
+- [Backend Implementation Guide](./docs/backend/IMPLEMENTATION.md)
+- [API Integration Guide](./docs/backend/api/INTEGRATION.md)
+- [Database Schema](./docs/backend/database/SCHEMA.md)
 
 ## Contributing
 

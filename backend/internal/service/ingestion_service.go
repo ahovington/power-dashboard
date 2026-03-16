@@ -7,9 +7,9 @@ import (
 	"math"
 	"time"
 
+	"github.com/ahovingtonpower-dashboard/internal/model"
+	"github.com/ahovingtonpower-dashboard/pkg/adapter"
 	"github.com/google/uuid"
-	"github.com/yourusername/power-dashboard/internal/model"
-	"github.com/yourusername/power-dashboard/pkg/adapter"
 )
 
 type ReadingWriter interface {

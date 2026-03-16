@@ -28,10 +28,12 @@ services:
       GO_ENV:                ${GO_ENV:-production}
       LOG_LEVEL:             ${LOG_LEVEL:-info}
       PORT:                  "8080"
-      CORS_ALLOWED_ORIGIN:   ${CORS_ALLOWED_ORIGIN:-http://localhost}
+      CORS_ALLOWED_ORIGIN:   ${CORS_ALLOWED_ORIGIN:-http://localhost:3000}
       ENPHASE_API_KEY:       ${ENPHASE_API_KEY:-}
       ENPHASE_SYSTEM_ID:     ${ENPHASE_SYSTEM_ID:-}
       POLL_INTERVAL_SECONDS: ${POLL_INTERVAL_SECONDS:-300}
+      FAKE_PROVIDER:         ${FAKE_PROVIDER:-false}
+      FAKE_SEED:             ${FAKE_SEED:-0}
     depends_on:
       db:
         condition: service_healthy

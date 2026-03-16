@@ -9,7 +9,11 @@
       "Bash(git push:*)",
       "Bash(docker compose:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(go test:*)",
+      "Bash(curl:*)",
+      "Bash(just:*)",
+      "Bash(which just:*)"
     ]
   }
 }

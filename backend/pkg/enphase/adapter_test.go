@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ahovingtonpower-dashboard/pkg/adapter"
+	"github.com/ahovingtonpower-dashboard/pkg/enphase"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/yourusername/power-dashboard/pkg/adapter"
-	"github.com/yourusername/power-dashboard/pkg/enphase"
 )
 
 func TestGetSystemStatus_OK(t *testing.T) {

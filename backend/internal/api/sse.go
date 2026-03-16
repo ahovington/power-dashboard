@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"sync/atomic"
 
-	"github.com/yourusername/power-dashboard/internal/model"
+	"github.com/ahovingtonpower-dashboard/internal/model"
 )
 
 const sseClientBuffer = 16

@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ahovingtonpower-dashboard/internal/api"
+	"github.com/ahovingtonpower-dashboard/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/yourusername/power-dashboard/internal/api"
-	"github.com/yourusername/power-dashboard/internal/model"
 )
 
 func TestHub_SingleClientReceivesEvent(t *testing.T) {

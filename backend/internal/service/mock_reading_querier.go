@@ -14,8 +14,8 @@ import (
 	reflect "reflect"
 	time "time"
 
+	model "github.com/ahovingtonpower-dashboard/internal/model"
 	uuid "github.com/google/uuid"
-	model "github.com/yourusername/power-dashboard/internal/model"
 	gomock "go.uber.org/mock/gomock"
 )
 

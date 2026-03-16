@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/yourusername/power-dashboard/pkg/adapter"
+	"github.com/ahovingtonpower-dashboard/pkg/adapter"
 )
 
 const defaultBaseURL = "https://api.enphaseenergy.com/api/v4"
