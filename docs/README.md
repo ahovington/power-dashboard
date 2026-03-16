@@ -17,8 +17,8 @@
 - [API Endpoints](./api/ENDPOINTS.md) - Backend API reference
 
 ## Database
-- [Schema Documentation](./database/SCHEMA.md) - Database tables and relationships
-- [Migrations](./database/MIGRATIONS.md) - Database migration guide
+- [Schema Documentation](./database/SCHEMA.md) - Database tables and relationships (uses TIMESTAMPTZ, unique constraints, users/households)
+- [Migrations](./database/MIGRATIONS.md) - Database migration guide (managed by golang-migrate)
 
 ## Deployment
 - [Docker Setup](./DOCKER.md) - Docker and compose configuration

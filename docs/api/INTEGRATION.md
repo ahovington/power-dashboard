@@ -6,21 +6,21 @@ This guide explains how to integrate new energy API providers into the Power Mon
 
 ## Architecture
 
-The system uses the **Adapter Pattern** to abstract different provider implementations:
+The system uses the **Adapter Pattern** to abstract different provider implementations. Each adapter is constructed with a typed config struct — `interface{}` is never used in adapter signatures.
 
 ```
-ProviderAdapter Interface
-    ↑
-    ├── EnphaseAdapter
-    ├── TeslaAdapter (Future)
-    └── NewProviderAdapter
+ProviderAdapter interface
+     ↑
+     ├── EnphaseAdapter  (constructed with EnphaseConfig)
+     ├── TeslaAdapter    (constructed with TeslaConfig)
+     └── NewProviderAdapter (constructed with NewProviderConfig)
 ```
 
 ## Creating a New Provider Adapter
 
 ### Step 1: Define the Adapter Interface
 
-All providers must implement the `ProviderAdapter` interface:
+All providers implement the `ProviderAdapter` interface from `pkg/adapter/provider_adapter.go`:
 
 ```go
 // pkg/adapter/provider_adapter.go
@@ -32,56 +32,80 @@ import (
 )
 
 type SystemStatus struct {
-    ID                string
-    Name              string
-    Status            string
-    PowerProduced     int
-    PowerConsumed     int
-    PowerNet          int
-    BatteryCharge     int
+    ID            string
+    Name          string
+    Status        string
+    PowerProduced int
+    PowerConsumed int
 }
 
 type PowerMetrics struct {
-    Timestamp         time.Time
-    PowerProduced     int
-    PowerConsumed     int
-    PowerNet          int
-    Frequency         float64
-    VoltagePhaseA     float64
-    VoltagePhaseB     float64
-    VoltagePhaseC     float64
+    Timestamp     time.Time
+    PowerProduced int
+    PowerConsumed int
+    // power_net is computed by callers as PowerProduced - PowerConsumed
+    Frequency     float64
+    VoltagePhaseA float64
+    VoltagePhaseB float64
+    VoltagePhaseC float64
 }
 
 type ProviderAdapter interface {
-    // Authenticate with the provider API
-    Authenticate(ctx context.Context, credentials interface{}) error
-    
     // Get current system status
     GetSystemStatus(ctx context.Context) (*SystemStatus, error)
-    
+
     // Get power metrics for time period
     GetPowerMetrics(ctx context.Context, duration time.Duration) ([]PowerMetrics, error)
-    
+
     // Get list of connected devices
     GetDeviceList(ctx context.Context) ([]DeviceInfo, error)
-    
+
     // Get battery status (if available)
     GetBatteryStatus(ctx context.Context) (*BatteryStatus, error)
-    
+
     // Get power quality metrics
     GetPowerQuality(ctx context.Context) (*PowerQualityMetrics, error)
 }
 ```
 
-### Step 2: Create Provider Package
+Authentication is handled in the adapter constructor, not as an interface method. Each adapter manages its own token lifecycle internally.
 
-Create a new directory for your provider:
+### Typed Error Sentinels
+
+```go
+// pkg/adapter/errors.go
+package adapter
+
+import "errors"
+
+var (
+    ErrRateLimited         = errors.New("provider: rate limit exceeded")
+    ErrAuthExpired         = errors.New("provider: authentication expired")
+    ErrProviderUnavailable = errors.New("provider: service unavailable")
+)
+```
+
+### Step 2: Create Provider Package
 
 ```bash
 mkdir -p backend/pkg/newprovider
 ```
 
-### Step 3: Implement the Adapter
+### Step 3: Define Typed Config
+
+```go
+// pkg/newprovider/config.go
+package newprovider
+
+// NewProviderConfig holds credentials loaded from environment variables.
+// Never accept interface{} — typed config is enforced at compile time.
+type NewProviderConfig struct {
+    APIKey  string
+    BaseURL string // optional override for testing
+}
+```
+
+### Step 4: Implement the Adapter
 
 ```go
 // pkg/newprovider/adapter.go
@@ -93,67 +117,71 @@ import (
     "fmt"
     "net/http"
     "time"
-    
-    "yourmodule/internal/model"
+
     "yourmodule/pkg/adapter"
 )
 
 type NewProviderAdapter struct {
-    apiKey    string
-    baseURL   string
+    config     NewProviderConfig
     httpClient *http.Client
 }
 
-func NewAdapter(apiKey string) *NewProviderAdapter {
+func NewAdapter(cfg NewProviderConfig) *NewProviderAdapter {
+    if cfg.BaseURL == "" {
+        cfg.BaseURL = "https://api.newprovider.com/v1"
+    }
     return &NewProviderAdapter{
-        apiKey: apiKey,
-        baseURL: "https://api.newprovider.com/v1",
+        config: cfg,
         httpClient: &http.Client{
             Timeout: 10 * time.Second,
         },
     }
 }
 
-func (a *NewProviderAdapter) Authenticate(ctx context.Context, credentials interface{}) error {
-    // Implement authentication logic
-    return nil
-}
-
 func (a *NewProviderAdapter) GetSystemStatus(ctx context.Context) (*adapter.SystemStatus, error) {
-    // Make API request to provider
-    req, err := http.NewRequestWithContext(ctx, "GET", a.baseURL+"/system/status", nil)
+    req, err := http.NewRequestWithContext(ctx, "GET", a.config.BaseURL+"/system/status", nil)
     if err != nil {
-        return nil, err
+        return nil, fmt.Errorf("newprovider: build request: %w", err)
     }
-    
-    req.Header.Set("Authorization", "Bearer "+a.apiKey)
-    
+
+    req.Header.Set("Authorization", "Bearer "+a.config.APIKey)
+
     resp, err := a.httpClient.Do(req)
     if err != nil {
-        return nil, err
+        return nil, fmt.Errorf("newprovider: do request: %w", err)
     }
     defer resp.Body.Close()
-    
+
+    // Always check the status code before decoding.
+    switch resp.StatusCode {
+    case http.StatusOK:
+        // continue
+    case http.StatusUnauthorized, http.StatusForbidden:
+        return nil, adapter.ErrAuthExpired
+    case http.StatusTooManyRequests:
+        return nil, adapter.ErrRateLimited
+    default:
+        return nil, fmt.Errorf("%w: HTTP %d", adapter.ErrProviderUnavailable, resp.StatusCode)
+    }
+
     var statusResp SystemStatusResponse
     if err := json.NewDecoder(resp.Body).Decode(&statusResp); err != nil {
-        return nil, err
+        return nil, fmt.Errorf("newprovider: decode response: %w", err)
     }
-    
-    // Transform to common format
+
     return &adapter.SystemStatus{
-        ID: statusResp.SystemID,
-        Name: statusResp.Name,
-        Status: statusResp.State,
+        ID:            statusResp.SystemID,
+        Name:          statusResp.Name,
+        Status:        statusResp.State,
         PowerProduced: statusResp.CurrentProduction,
         PowerConsumed: statusResp.CurrentConsumption,
-        PowerNet: statusResp.CurrentProduction - statusResp.CurrentConsumption,
     }, nil
 }
 
 // Implement other interface methods...
 ```
 
-### Step 4: Create Type Definitions
+### Step 5: Create Type Definitions
 
 ```go
 // pkg/newprovider/types.go
@@ -168,14 +196,14 @@ type SystemStatusResponse struct {
 }
 
 type MetricsResponse struct {
-    Timestamp string `json:"timestamp"`
-    Production int  `json:"production"`
-    Consumption int `json:"consumption"`
-    Frequency float64 `json:"frequency"`
+    Timestamp   string  `json:"timestamp"`
+    Production  int     `json:"production"`
+    Consumption int     `json:"consumption"`
+    Frequency   float64 `json:"frequency"`
 }
 ```
 
-### Step 5: Create Mock Responses
+### Step 6: Create Mock Responses
 
 ```go
 // pkg/newprovider/mock_responses.go
@@ -183,16 +211,16 @@ package newprovider
 
 func MockSystemStatus() *SystemStatusResponse {
     return &SystemStatusResponse{
-        SystemID: "mock-system-123",
-        Name: "Test System",
-        State: "normal",
-        CurrentProduction: 5000,
+        SystemID:           "mock-system-123",
+        Name:               "Test System",
+        State:              "normal",
+        CurrentProduction:  5000,
         CurrentConsumption: 3000,
     }
 }
 ```
 
-### Step 6: Register Adapter in Service
+### Step 7: Register Adapter in Service Factory
 
 ```go
 // internal/service/provider_factory.go
@@ -205,55 +233,119 @@ import (
     "yourmodule/pkg/newprovider"
 )
 
-func CreateAdapter(providerType string, config interface{}) (adapter.ProviderAdapter, error) {
+// CreateAdapter uses typed config structs — no interface{} type assertions.
+func CreateAdapter(providerType string, env map[string]string) (adapter.ProviderAdapter, error) {
     switch providerType {
     case "enphase":
-        cfg := config.(map[string]string)
-        return enphase.NewAdapter(cfg["api_key"]), nil
+        return enphase.NewAdapter(enphase.Config{
+            APIKey:   env["ENPHASE_API_KEY"],
+            SystemID: env["ENPHASE_SYSTEM_ID"],
+        }), nil
     case "newprovider":
-        cfg := config.(map[string]string)
-        return newprovider.NewAdapter(cfg["api_key"]), nil
+        return newprovider.NewAdapter(newprovider.NewProviderConfig{
+            APIKey: env["NEWPROVIDER_API_KEY"],
+        }), nil
     default:
-        return nil, fmt.Errorf("unsupported provider: %s", providerType)
+        return nil, fmt.Errorf("unsupported provider: %q", providerType)
     }
 }
 ```
 
-### Step 7: Add Tests
+### Step 8: Add Tests
+
+Tests use `httptest.NewServer` to mock provider responses — never call real provider URLs in tests.
 
 ```go
 // pkg/newprovider/adapter_test.go
-package newprovider
+package newprovider_test
 
 import (
     "context"
+    "encoding/json"
+    "net/http"
+    "net/http/httptest"
     "testing"
+
     "github.com/stretchr/testify/assert"
+    "github.com/stretchr/testify/require"
+    "yourmodule/pkg/adapter"
+    "yourmodule/pkg/newprovider"
 )
 
-func TestGetSystemStatus(t *testing.T) {
-    adapter := NewAdapter("test-key")
-    
-    status, err := adapter.GetSystemStatus(context.Background())
-    
-    assert.NoError(t, err)
-    assert.NotNil(t, status)
-    assert.Greater(t, status.PowerProduced, 0)
+func TestGetSystemStatus_OK(t *testing.T) {
+    srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(newprovider.MockSystemStatus())
+    }))
+    defer srv.Close()
+
+    a := newprovider.NewAdapter(newprovider.NewProviderConfig{
+        APIKey:  "test-key",
+        BaseURL: srv.URL,
+    })
+
+    status, err := a.GetSystemStatus(context.Background())
+
+    require.NoError(t, err)
+    assert.Equal(t, "mock-system-123", status.ID)
+    assert.Equal(t, 5000, status.PowerProduced)
+}
+
+func TestGetSystemStatus_RateLimit(t *testing.T) {
+    srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.WriteHeader(http.StatusTooManyRequests)
+    }))
+    defer srv.Close()
+
+    a := newprovider.NewAdapter(newprovider.NewProviderConfig{APIKey: "test", BaseURL: srv.URL})
+
+    _, err := a.GetSystemStatus(context.Background())
+
+    assert.ErrorIs(t, err, adapter.ErrRateLimited)
+}
+
+func TestGetSystemStatus_AuthExpired(t *testing.T) {
+    srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.WriteHeader(http.StatusUnauthorized)
+    }))
+    defer srv.Close()
+
+    a := newprovider.NewAdapter(newprovider.NewProviderConfig{APIKey: "expired", BaseURL: srv.URL})
+
+    _, err := a.GetSystemStatus(context.Background())
+
+    assert.ErrorIs(t, err, adapter.ErrAuthExpired)
+}
+
+func TestGetSystemStatus_MalformedJSON(t *testing.T) {
+    srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.WriteHeader(http.StatusOK)
+        w.Write([]byte("not json"))
+    }))
+    defer srv.Close()
+
+    a := newprovider.NewAdapter(newprovider.NewProviderConfig{APIKey: "test", BaseURL: srv.URL})
+
+    _, err := a.GetSystemStatus(context.Background())
+
+    assert.Error(t, err)
 }
 ```
 
 ## Integration Checklist
 
-- [ ] Adapter implements `ProviderAdapter` interface
-- [ ] API client handles authentication
-- [ ] Response parsing with error handling
-- [ ] Type conversions to common format
-- [ ] Mock responses for testing
-- [ ] Unit tests for adapter
-- [ ] Integration tests with service
-- [ ] Documentation of API endpoints
-- [ ] Error handling for rate limits
-- [ ] Proper logging
+- [ ] Typed config struct defined (no `interface{}` parameters)
+- [ ] Constructor accepts typed config, handles auth internally
+- [ ] All HTTP response status codes checked before decoding (200, 401, 429, 5xx)
+- [ ] Typed sentinel errors returned (`ErrRateLimited`, `ErrAuthExpired`, `ErrProviderUnavailable`)
+- [ ] Errors wrapped with `fmt.Errorf("provider: action: %w", err)` for context
+- [ ] `httptest.NewServer` used in all tests — no real HTTP calls
+- [ ] Tests cover: 200 valid, 200 invalid JSON, 401, 429, 5xx, network timeout
+- [ ] Mock responses defined in `mock_responses.go`
+- [ ] Adapter registered in `provider_factory.go` with typed config
+- [ ] Integration tests with service layer
+- [ ] API credentials documented in `.env.example`
+- [ ] Logging: provider name included in all error log lines
 
 ## Common Provider API Patterns
 
@@ -261,54 +353,69 @@ func TestGetSystemStatus(t *testing.T) {
 
 ```go
 type RESTProvider struct {
-    baseURL string
-    client  *http.Client
+    config NewProviderConfig
+    client *http.Client
 }
 
-func (p *RESTProvider) makeRequest(method, endpoint string) (*Response, error) {
-    // Implementation
+func (p *RESTProvider) get(ctx context.Context, endpoint string, out interface{}) error {
+    req, err := http.NewRequestWithContext(ctx, "GET", p.config.BaseURL+endpoint, nil)
+    if err != nil {
+        return fmt.Errorf("build request: %w", err)
+    }
+    req.Header.Set("Authorization", "Bearer "+p.config.APIKey)
+
+    resp, err := p.client.Do(req)
+    if err != nil {
+        return fmt.Errorf("do request: %w", err)
+    }
+    defer resp.Body.Close()
+
+    switch resp.StatusCode {
+    case http.StatusOK:
+    case http.StatusUnauthorized, http.StatusForbidden:
+        return adapter.ErrAuthExpired
+    case http.StatusTooManyRequests:
+        return adapter.ErrRateLimited
+    default:
+        return fmt.Errorf("%w: HTTP %d", adapter.ErrProviderUnavailable, resp.StatusCode)
+    }
+
+    if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+        return fmt.Errorf("decode response: %w", err)
+    }
+    return nil
 }
 ```
 
 ### Polling vs. Webhooks
 
-- **Polling**: Adapter queries provider API on interval
-- **Webhooks**: Provider pushes updates to adapter
+- **Polling**: `IngestionService` calls adapter methods on a ticker interval (default 5 min)
+- **Webhooks**: Provider pushes updates; adapter exposes an HTTP handler registered on a separate route
 
-```go
-// Polling implementation
-func (a *Adapter) Poll(ctx context.Context, interval time.Duration) {
-    ticker := time.NewTicker(interval)
-    for range ticker.C {
-        a.GetSystemStatus(ctx)
-    }
-}
-```
+The ingestion service handles all polling scheduling and backoff — adapters only implement data-fetching methods.
 
 ### Rate Limiting
 
-Respect provider rate limits:
+The `IngestionService` handles backoff on `ErrRateLimited`. Adapters return the sentinel error; the service decides the retry strategy:
 
 ```go
-import "golang.org/x/time/rate"
-
-limiter := rate.NewLimiter(rate.Every(time.Second), 10) // 10 requests per second
-
-if !limiter.Allow() {
-    return fmt.Errorf("rate limit exceeded")
+// internal/service/ingestion_service.go
+if errors.Is(err, adapter.ErrRateLimited) {
+    s.backoff.increase()
+    slog.Warn("ingestion: rate limited", "provider", s.providerType, "retry_in", s.backoff.current())
+    return
 }
 ```
 
-## Best Practices
+## Provider Credentials
 
-1. **Error Handling**: Return meaningful errors
-2. **Timeouts**: Set reasonable request timeouts
-3. **Logging**: Log API interactions for debugging
-4. **Caching**: Cache responses to reduce API calls
-5. **Testing**: Use mock responses instead of real API calls
-6. **Documentation**: Document API credentials needed
-7. **Secrets**: Never commit API keys
-8. **Versioning**: Handle API version changes
+Provider API keys are loaded from environment variables. See `.env.example` for the full list. Credentials are never stored in the database.
+
+```bash
+# .env
+ENPHASE_API_KEY=your_enphase_key
+ENPHASE_SYSTEM_ID=your_system_id
+```
 
 ## API Provider Resources
 
@@ -321,21 +428,19 @@ if !limiter.Allow() {
 
 ### Authentication Failures
 
-Check:
-- API key is correct
-- Token hasn't expired
-- Provider credentials are in environment variables
+The adapter returns `adapter.ErrAuthExpired`. Check:
+- API key is correct in `.env`
+- Token hasn't expired (OAuth2 providers require periodic re-authentication)
+- Provider credentials match the configured system/site ID
 
 ### Data Parsing Errors
 
-Test with:
-- Mock responses that match provider format
-- JSON unmarshaling tests
-- Sample API responses from provider
+Errors are wrapped with context: `"newprovider: decode response: ..."`. Check:
+- Provider API version hasn't changed response format
+- Test with `MockSystemStatus()` to confirm adapter code is correct
 
 ### Rate Limiting
 
-Implement:
-- Request throttling
-- Exponential backoff for retries
-- Local caching
+The ingestion service backs off automatically on `adapter.ErrRateLimited`. Check:
+- Polling interval is not too aggressive for the provider's limits
+- Multiple instances are not polling the same provider simultaneously

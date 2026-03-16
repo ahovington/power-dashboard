@@ -22,7 +22,7 @@ cd power-dashboard
 cp .env.example .env
 ```
 
-Edit `.env` with your credentials:
+Edit `.env` with your credentials (see `.env.example` for all required variables):
 
 ```
 GO_ENV=development
@@ -45,9 +45,13 @@ This starts:
 
 ### 4. Initialize Database
 
+Migrations are managed by `golang-migrate`. They run automatically at server startup via `migrate.Up()`. To run them manually:
+
 ```bash
 docker-compose exec backend go run cmd/server/main.go migrate
 ```
+
+Migration files live in `backend/migrations/` as paired `.up.sql` / `.down.sql` files. Applied migrations are tracked in the `schema_migrations` table.
 
 ## Development Workflow
 
@@ -88,6 +92,9 @@ Frontend hot-reloads automatically on file changes.
 ```bash
 # Unit tests
 go test ./internal/...
+
+# With race detector (required — catches goroutine races in SSE hub and ingestion)
+go test -race ./...
 
 # With coverage
 go test -cover ./...
@@ -184,7 +191,7 @@ docker-compose exec backend go run cmd/server/main.go migrate
 ### Add New API Endpoint
 
 1. Create handler in `internal/api/handler.go`
-2. Add route in `internal/api/routes.go`
+2. Add route in `internal/api/routes.go` under the `/api/v1/` prefix
 3. Add service method if needed
 4. Write tests
 5. Document in API_ENDPOINTS.md
