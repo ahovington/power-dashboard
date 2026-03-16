@@ -10,6 +10,7 @@
 ## Development
 - [Development Guide](./DEVELOPMENT.md) - Setup and development workflow
 - [Testing Strategy](./TESTING.md) - Test-driven development approach
+- [Backend Implementation Guide](./IMPLEMENTATION.md) - Step-by-step backend build order with code
 
 ## API & Integration
 - [API Integration Guide](./api/INTEGRATION.md) - How to add new providers

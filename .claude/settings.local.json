@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(wc:*)",
-      "Skill(plan-ceo-review)"
+      "Skill(plan-ceo-review)",
+      "Skill(plan-eng-review)"
     ]
   }
 }
