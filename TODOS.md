@@ -7,7 +7,7 @@ Format: Priority (P1/P2/P3), Effort (S/M/L/XL), Status.
 
 ## Architecture
 
-### [P1/M] Add SSE hub for real-time frontend updates
+### ~~[P1/M] Add SSE hub for real-time frontend updates~~ ✓ DONE
 **What:** Replace REST polling with Server-Sent Events. Backend maintains a fan-out hub; ingestion goroutine pushes `PowerEvent` onto an internal channel; hub broadcasts to all connected clients.
 **Why:** The docs promise "real-time updates" but the current REST-only design introduces visible lag and wastes provider API quota. SSE is HTTP-native, handles reconnects automatically, and Go's `http.Flusher` interface makes implementation straightforward.
 **How to apply:** Add `GET /api/v1/events` SSE endpoint. Internal `EventHub` struct with `Subscribe()/Unsubscribe()` and a fan-out goroutine. Buffered channels per client prevent slow clients from blocking the hub.
@@ -15,7 +15,7 @@ Format: Priority (P1/P2/P3), Effort (S/M/L/XL), Status.
 
 ---
 
-### [P1/M] Background ingestion goroutine with recover() + exponential backoff
+### ~~[P1/M] Background ingestion goroutine with recover() + exponential backoff~~ ✓ DONE
 **What:** A goroutine started at server init that polls each registered provider adapter on a configurable interval (default: 5 min). Wraps the poll body in `recover()` to catch panics from malformed API responses. Uses exponential backoff (1s → 2s → 4s → ... cap 5min) on consecutive errors.
 **Why:** The current docs show a `Poll()` snippet but never explain who calls it, how it's supervised, or what happens when it panics. A nil pointer from a bad API response will crash the backend silently.
 **How to apply:** Implement in `internal/service/ingestion_service.go`. Accept a `context.Context` for graceful shutdown. Log every cycle with structured fields: provider, device_id, readings_persisted, duration_ms, next_poll_in.
@@ -55,7 +55,7 @@ Format: Priority (P1/P2/P3), Effort (S/M/L/XL), Status.
 
 ---
 
-### [P1/S] Add /api/v1 prefix to all routes
+### ~~[P1/S] Add /api/v1 prefix to all routes~~ ✓ DONE
 **What:** All backend API routes use `/api/v1/` prefix.
 **Why:** Adding versioning after clients are built requires breaking changes. This is a one-way door.
 **How to apply:** Set as the Chi router mount prefix in `routes.go`. Update frontend `api.ts` base URL.
@@ -63,7 +63,7 @@ Format: Priority (P1/P2/P3), Effort (S/M/L/XL), Status.
 
 ---
 
-### [P1/S] Add .env.example file
+### ~~[P1/S] Add .env.example file~~ ✓ DONE
 **What:** Create `.env.example` with all required environment variables, documented, with placeholder values.
 **Why:** The DEVELOPMENT.md says `cp .env.example .env` but no `.env.example` exists. A new developer will not know what variables are required.
 **How to apply:** Create at repo root with all variables from DEVELOPMENT.md and config.go.
@@ -71,7 +71,7 @@ Format: Priority (P1/P2/P3), Effort (S/M/L/XL), Status.
 
 ---
 
-### [P1/M] Use golang-migrate for database migrations
+### ~~[P1/M] Use golang-migrate for database migrations~~ ✓ DONE
 **What:** Add `golang-migrate/migrate` library. Migration runner in `cmd/server/main.go` applies unapplied migrations from `backend/migrations/`. Tracks state in `schema_migrations` table.
 **Why:** The current plan references `go run cmd/server/main.go migrate` but `main.go` is a stub with no migration logic. A hand-rolled runner risks re-running migrations, skipping failed ones, or corrupting state.
 **How to apply:** Add `github.com/golang-migrate/migrate/v4` to `go.mod`. Call `migrate.Up()` at server startup (fail fast if migrations fail). Number migration files sequentially: `001_initial_schema.up.sql`, `001_initial_schema.down.sql`.

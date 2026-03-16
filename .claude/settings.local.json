@@ -3,7 +3,12 @@
     "allow": [
       "Bash(wc:*)",
       "Skill(plan-ceo-review)",
-      "Skill(plan-eng-review)"
+      "Skill(plan-eng-review)",
+      "Bash(npm install:*)",
+      "Bash(npm test:*)",
+      "Bash(git push:*)",
+      "Bash(docker compose:*)",
+      "Bash(git add:*)"
     ]
   }
 }
