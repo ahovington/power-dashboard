@@ -1,0 +1,83 @@
+.header {
+  border-bottom: 1px solid var(--border);
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.appName {
+  font-family: var(--font-condensed);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--text-primary);
+  text-transform: uppercase;
+}
+
+.appName span {
+  color: var(--amber);
+}
+
+.deviceLabel {
+  font-family: var(--font-condensed);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.liveGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.dotOffline {
+  background: var(--text-dim);
+  animation: none;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%       { transform: scale(1.4); opacity: 0.6; }
+}
+
+.liveText {
+  font-family: var(--font-condensed);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.liveText.online  { color: var(--green); }
+.liveText.offline { color: var(--text-dim); }
+
+.timestamp {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+}
