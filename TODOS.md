@@ -174,6 +174,22 @@ if !ok {
 
 ---
 
+### [P2/S] Periodic refresh for `usePowerHistory`
+**What:** Add an optional `refreshInterval` to `usePowerHistory` that re-fetches history data on a timer (e.g. every 5 minutes for the 'hour' view).
+**Why:** History data goes stale during long sessions. SSE covers the live metric cards, but the area chart won't update unless the user manually changes intervals. For the 'hour' view this is immediately visible — the chart's right edge stays frozen.
+**How to apply:** Add `useEffect` with `setInterval` (the global one) in `usePowerHistory`. Only activate when `interval === 'hour'` since longer views (day/week) change slowly. Pair with the existing `loading` state so the chart shows a subtle refresh indicator.
+**Depends on:** Nothing
+
+---
+
+### [P2/M] Wire BatteryCard once backend exposes battery data
+**What:** Add `battery_charge_pct`, `battery_power_w`, and `battery_direction` fields to `PowerStatus` and `PowerEvent` API responses. Implement `BatteryCard` component in the frontend (plan exists in IMPLEMENTATION.md Step 8 — removed from MVP but preserved as a template). Wire `GetBatteryStatus()` in the Enphase adapter (currently returns `nil, nil`).
+**Why:** Battery state (charge %, charging vs discharging, wattage) is core to the "home energy system" dashboard concept. It was removed from MVP only because the backend returns no data yet, not because it's unimportant.
+**How to apply:** 1. Extend `PowerReading` model and DB schema with battery columns. 2. Implement `GetBatteryStatus()` in Enphase adapter using the `/ivp/ensemble/inventory` endpoint. 3. Merge battery state into `PowerStatus` API response. 4. Restore `BatteryCard` component from IMPLEMENTATION.md Step 8 template.
+**Depends on:** Enphase battery API endpoint research; `GetBatteryStatus()` currently returns `nil, nil`
+
+---
+
 ## Future Vision (P3)
 
 ### [P3/L] Energy cost & savings tracking

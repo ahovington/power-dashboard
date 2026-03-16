@@ -1,0 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700&display=swap');
+
+:root {
+  --bg:           #080810;
+  --surface:      #0f0f1a;
+  --border:       #1c1c2e;
+  --text-primary: #dcd8f0;
+  --text-dim:     #52506b;
+
+  --amber:  #f0a500;
+  --coral:  #ff5e45;
+  --cyan:   #00c8e0;
+  --red:    #ff3b30;
+  --green:  #30d158;
+  --yellow: #ffd60a;
+
+  --font-mono:      'Share Tech Mono', monospace;
+  --font-condensed: 'Barlow Condensed', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-condensed);
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
