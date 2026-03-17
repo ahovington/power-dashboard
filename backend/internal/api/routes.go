@@ -48,6 +48,7 @@ func NewRouter(h *Handler, allowedOrigin string) http.Handler {
 			})
 			r.Get("/power/status", h.GetCurrentStatus)
 			r.Get("/power/history", h.GetHistory)
+			r.Get("/power/battery", h.GetBatteryStatus)
 		})
 	})
 

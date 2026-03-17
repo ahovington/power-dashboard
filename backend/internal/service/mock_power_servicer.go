@@ -42,6 +42,21 @@ func (m *MockPowerServicer) EXPECT() *MockPowerServicerMockRecorder {
 	return m.recorder
 }
 
+// GetLatestBatteryStatus mocks base method.
+func (m *MockPowerServicer) GetLatestBatteryStatus(arg0 context.Context, arg1 uuid.UUID) (*model.BatteryStatus, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLatestBatteryStatus", arg0, arg1)
+	ret0, _ := ret[0].(*model.BatteryStatus)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLatestBatteryStatus indicates an expected call of GetLatestBatteryStatus.
+func (mr *MockPowerServicerMockRecorder) GetLatestBatteryStatus(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestBatteryStatus", reflect.TypeOf((*MockPowerServicer)(nil).GetLatestBatteryStatus), arg0, arg1)
+}
+
 // GetCurrentStatus mocks base method.
 func (m *MockPowerServicer) GetCurrentStatus(arg0 context.Context, arg1 uuid.UUID) (*model.PowerReading, error) {
 	m.ctrl.T.Helper()

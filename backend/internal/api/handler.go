@@ -19,6 +19,7 @@ import (
 type PowerServicer interface {
 	GetCurrentStatus(ctx context.Context, deviceID uuid.UUID) (*model.PowerReading, error)
 	GetHistory(ctx context.Context, deviceID uuid.UUID, interval string, start, end time.Time) ([]*model.PowerReading, error)
+	GetLatestBatteryStatus(ctx context.Context, deviceID uuid.UUID) (*model.BatteryStatus, error)
 }
 
 type Handler struct {
@@ -90,6 +91,25 @@ func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, readings)
+}
+
+func (h *Handler) GetBatteryStatus(w http.ResponseWriter, r *http.Request) {
+	deviceID, err := uuid.Parse(r.URL.Query().Get("device_id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid device_id")
+		return
+	}
+	b, err := h.power.GetLatestBatteryStatus(r.Context(), deviceID)
+	if err != nil {
+		slog.Error("handler: get battery status", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	if b == nil {
+		writeJSON(w, http.StatusOK, map[string]string{"status": "no data"})
+		return
+	}
+	writeJSON(w, http.StatusOK, b)
 }
 
 func (h *Handler) ServeEvents(w http.ResponseWriter, r *http.Request) {
