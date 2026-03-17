@@ -3,6 +3,7 @@ package fake
 import (
 	"testing"
 	"time"
+	_ "time/tzdata" // embed IANA timezone database so tests pass on alpine/CI
 
 	"github.com/stretchr/testify/assert"
 )
@@ -110,4 +111,56 @@ func TestSunriseSunset_SummerLongerDay(t *testing.T) {
 	summerDayLength := sSummer - rSummer
 	winterDayLength := sWinter - rWinter
 	assert.Greater(t, summerDayLength, winterDayLength, "summer day should be longer than winter")
+}
+
+// ---- Timezone-aware tests ----
+// Sydney is UTC+11 in March (AEDT). These tests confirm that the generator
+// uses local time for hour-of-day, not the raw UTC timestamp.
+
+var sydneyCfg = FakeConfig{Seed: 42, PeakWatts: 6000, LatitudeDeg: -33.87, BatteryCapWh: 13500, TimeZone: "Australia/Sydney"}
+
+func TestSolarWatts_UTCMorningIsSydneyAfternoon(t *testing.T) {
+	// UTC 05:00 on 17 Mar 2026 = AEDT 16:00 — peak afternoon solar.
+	// Without timezone the curve sees hour=5 (before sunrise) → 0.
+	// With Sydney timezone the curve sees hour=16 → positive production.
+	ts := time.Date(2026, 3, 17, 5, 0, 0, 0, time.UTC)
+
+	assert.Equal(t, 0, SolarWatts(testCfg, ts), "UTC hour 5 without TZ should be before Sydney sunrise")
+	assert.Greater(t, SolarWatts(sydneyCfg, ts), 0, "UTC 05:00 should map to Sydney afternoon and produce solar")
+}
+
+func TestSolarWatts_TimezoneRespected(t *testing.T) {
+	// Solar peak should be near 12:00 local (Sydney), not 12:00 UTC.
+	// In March, AEDT = UTC+11: Sydney noon = UTC 01:00; UTC noon = Sydney 23:00.
+	utcNoon := time.Date(2026, 3, 17, 12, 0, 0, 0, time.UTC)    // Sydney 23:00 — night
+	sydneyNoon := time.Date(2026, 3, 17, 1, 0, 0, 0, time.UTC) // Sydney 12:00 — peak
+
+	assert.Equal(t, 0, SolarWatts(sydneyCfg, utcNoon), "UTC noon is Sydney 23:00 — no solar production expected")
+	assert.Greater(t, SolarWatts(sydneyCfg, sydneyNoon), 0, "UTC 01:00 is Sydney noon — solar production expected")
+}
+
+func TestBatteryState_MidnightReset(t *testing.T) {
+	// UTC 14:00 on 17 Mar = AEDT 01:00 on 18 Mar — one hour past Sydney midnight.
+	// With Sydney TZ the integration window is only 1 hour (no solar, ~800 W drain),
+	// so charge should remain close to the 50% starting point.
+	ts := time.Date(2026, 3, 17, 14, 0, 0, 0, time.UTC)
+
+	chargeSydney, _ := BatteryState(sydneyCfg, ts)
+	assert.InDelta(t, 50.0, chargeSydney, 10.0, "charge should be near 50% just after local Sydney midnight")
+}
+
+func TestConsumptionWatts_MorningPeakInLocalTime(t *testing.T) {
+	// UTC 20:00 = AEDT 07:00 — morning ramp (hour 6–9, 800–2000 W).
+	// Without timezone hour=20 is the evening ramp (≥3000 W peak).
+	ts := time.Date(2026, 3, 17, 20, 0, 0, 0, time.UTC)
+
+	w := ConsumptionWatts(sydneyCfg, ts)
+	assert.GreaterOrEqual(t, w, 800, "UTC 20:00 / Sydney 07:00 should be at or above morning base load")
+	assert.Less(t, w, 2200, "UTC 20:00 / Sydney 07:00 should still be in morning ramp, not evening peak")
+}
+
+func TestFakeConfig_InvalidTimezonePanics(t *testing.T) {
+	assert.Panics(t, func() {
+		FakeConfig{Seed: 42, TimeZone: "Not/A/Real/Zone"}.WithDefaults()
+	}, "WithDefaults should panic for an unrecognised IANA timezone name")
 }
