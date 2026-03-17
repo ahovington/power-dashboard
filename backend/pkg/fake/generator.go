@@ -8,11 +8,26 @@ import (
 
 const degreesToRad = math.Pi / 180
 
+// localTime converts t to the timezone configured in cfg.
+// Falls back to t unchanged if TimeZone is empty or cannot be loaded.
+func localTime(cfg FakeConfig, t time.Time) time.Time {
+	if cfg.TimeZone == "" {
+		return t
+	}
+	loc, err := time.LoadLocation(cfg.TimeZone)
+	if err != nil {
+		return t
+	}
+	return t.In(loc)
+}
+
 // SolarWatts returns instantaneous solar production in watts at time t.
 // Zero outside civil sunrise/sunset; sine-curve peak at solar noon.
+// Hour-of-day is computed in cfg.TimeZone so the curve aligns with local daylight.
 func SolarWatts(cfg FakeConfig, t time.Time) int {
-	sunrise, sunset := sunriseSunset(cfg.LatitudeDeg, t)
-	hour := timeOfDayHours(t)
+	lt := localTime(cfg, t)
+	sunrise, sunset := sunriseSunset(cfg.LatitudeDeg, lt)
+	hour := timeOfDayHours(lt)
 	if hour <= sunrise || hour >= sunset {
 		return 0
 	}
@@ -23,8 +38,10 @@ func SolarWatts(cfg FakeConfig, t time.Time) int {
 
 // ConsumptionWatts returns household power consumption in watts at time t.
 // Models overnight base load, morning and evening spikes.
+// Hour-of-day is computed in cfg.TimeZone so spikes align with local household rhythms.
 func ConsumptionWatts(cfg FakeConfig, t time.Time) int {
-	hour := timeOfDayHours(t)
+	lt := localTime(cfg, t)
+	hour := timeOfDayHours(lt)
 	base := piecewiseConsumption(hour)
 	return int(math.Max(100, base+Jitter(cfg.Seed+1, t, base*0.05)))
 }
@@ -51,8 +68,10 @@ func piecewiseConsumption(hour float64) float64 {
 
 // BatteryState returns (chargePercent, direction) at time t.
 // Integrates net power in 5-minute steps from midnight to approximate state of charge.
+// Midnight is determined in cfg.TimeZone so the daily reset aligns with local midnight.
 func BatteryState(cfg FakeConfig, t time.Time) (chargePercent float64, direction string) {
-	midnight := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	lt := localTime(cfg, t)
+	midnight := time.Date(lt.Year(), lt.Month(), lt.Day(), 0, 0, 0, 0, lt.Location())
 	const step = 5 * time.Minute
 	const stepHours = 5.0 / 60.0
 

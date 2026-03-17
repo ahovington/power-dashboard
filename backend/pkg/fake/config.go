@@ -1,6 +1,11 @@
 package fake
 
-import "github.com/google/uuid"
+import (
+	"fmt"
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // FakeDeviceID is the fixed UUID used by the fake provider for both the live
 // adapter and the seed CLI. All synthetic data rows use this device ID.
@@ -22,9 +27,15 @@ type FakeConfig struct {
 	LatitudeDeg float64
 	// BatteryCapWh is the battery capacity in watt-hours (default 13500 Wh).
 	BatteryCapWh int64
+	// TimeZone is the IANA timezone name used to interpret hour-of-day for solar
+	// and consumption curves (default "Australia/Sydney"). An invalid name panics
+	// in WithDefaults — like uuid.MustParse, fail fast at startup.
+	TimeZone string
 }
 
 // WithDefaults returns a copy of c with zero values replaced by sensible defaults.
+// Panics if TimeZone is set to an unrecognised IANA name — this is intentional:
+// a bad timezone produces silently wrong solar curves, so fail fast at startup.
 func (c FakeConfig) WithDefaults() FakeConfig {
 	if c.PeakWatts == 0 {
 		c.PeakWatts = 6000
@@ -34,6 +45,12 @@ func (c FakeConfig) WithDefaults() FakeConfig {
 	}
 	if c.BatteryCapWh == 0 {
 		c.BatteryCapWh = 13500
+	}
+	if c.TimeZone == "" {
+		c.TimeZone = "Australia/Sydney"
+	}
+	if _, err := time.LoadLocation(c.TimeZone); err != nil {
+		panic(fmt.Sprintf("fake: invalid TimeZone %q: %v", c.TimeZone, err))
 	}
 	return c
 }
