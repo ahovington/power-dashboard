@@ -28,8 +28,12 @@ func BuildProviders(cfg *config.Config, trigger <-chan time.Time) []ProviderInge
 		slog.Info("provider: enphase configured")
 		providers = append(providers, ProviderIngestionConfig{
 			Adapter: enphase.NewAdapter(enphase.Config{
-				APIKey:   cfg.EnphaseAPIKey,
-				SystemID: cfg.EnphaseSystemID,
+				APIKey:       cfg.EnphaseAPIKey,
+				SystemID:     cfg.EnphaseSystemID,
+				ClientID:     cfg.EnphaseClientID,
+				ClientSecret: cfg.EnphaseClientSecret,
+				AccessToken:  cfg.EnphaseAccessToken,
+				RefreshToken: cfg.EnphaseRefreshToken,
 			}),
 			DeviceID: uuid.New(), // TODO: load from devices table once DeviceRepository is wired
 			Trigger:  trigger,
@@ -39,7 +43,7 @@ func BuildProviders(cfg *config.Config, trigger <-chan time.Time) []ProviderInge
 	if cfg.FakeProvider {
 		slog.Info("provider: fake configured (synthetic data)", "seed", cfg.FakeSeed)
 		providers = append(providers, ProviderIngestionConfig{
-			Adapter:  fake.NewAdapter(fake.FakeConfig{Seed: cfg.FakeSeed}),
+			Adapter:  fake.NewAdapter(fake.FakeConfig{Seed: cfg.FakeSeed, TimeZone: cfg.FakeTimezone}),
 			DeviceID: fake.FakeDeviceID,
 			Trigger:  trigger,
 		})
