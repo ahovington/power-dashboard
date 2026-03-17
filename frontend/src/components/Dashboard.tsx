@@ -1,6 +1,7 @@
 import { useSSE } from '../hooks/useSSE';
 import { usePowerStatus } from '../hooks/usePowerStatus';
 import { usePowerHistory } from '../hooks/usePowerHistory';
+import { useBatteryStatus } from '../hooks/useBatteryStatus';
 import { PowerEvent } from '../types/power';
 import { SSE_URL } from '../services/api';
 import { Header } from './Header';
@@ -16,6 +17,7 @@ interface DashboardProps {
 export function Dashboard({ deviceId }: DashboardProps) {
   const { latestEvent, connected } = useSSE<PowerEvent>(SSE_URL);
   const { status } = usePowerStatus(deviceId, latestEvent);
+  const { battery } = useBatteryStatus(deviceId, latestEvent);
   const { readings, interval, setHistoryInterval, loading: historyLoading } = usePowerHistory(deviceId);
 
   const lastUpdated = latestEvent ? new Date(latestEvent.timestamp) : null;
@@ -48,14 +50,20 @@ export function Dashboard({ deviceId }: DashboardProps) {
             accent={gridDirection === 'export' ? 'cyan' : 'red'}
             direction={gridDirection}
           />
+          <MetricCard
+            label="BATTERY"
+            value={battery ? Math.round(battery.charge_percentage) : 0}
+            unit="%"
+            accent="green"
+          />
         </div>
 
         <EnergyFlowDiagram
           solarW={status?.power_produced ?? 0}
           consumedW={status?.power_consumed ?? 0}
           netW={status?.power_net ?? 0}
-          batteryW={0}
-          batteryDirection="charging"
+          batteryW={battery?.power_flowing ?? 0}
+          batteryDirection={battery?.power_direction ?? 'discharging'}
         />
 
         <HistoryChart

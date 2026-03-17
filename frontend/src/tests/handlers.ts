@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { PowerStatus, PowerReading } from '../types/power';
+import { PowerStatus, PowerReading, BatteryStatus } from '../types/power';
 
 export const MOCK_DEVICE_ID = 'test-device-uuid';
 
@@ -17,7 +17,18 @@ export const MOCK_HISTORY: PowerReading[] = [
   { reading_timestamp: '2024-01-01T12:00:00Z', power_produced: 5234, power_consumed: 3200 },
 ];
 
+export const MOCK_BATTERY: BatteryStatus = {
+  device_id: MOCK_DEVICE_ID,
+  reading_timestamp: '2024-06-01T12:00:00.000Z',
+  charge_percentage: 75.0,
+  state_of_health: 94,
+  power_flowing: 800,
+  power_direction: 'charging',
+  capacity_wh: 10000,
+};
+
 export const handlers = [
   http.get('*/api/v1/power/status', () => HttpResponse.json(MOCK_STATUS)),
   http.get('*/api/v1/power/history', () => HttpResponse.json(MOCK_HISTORY)),
+  http.get('*/api/v1/power/battery', () => HttpResponse.json(MOCK_BATTERY)),
 ];
