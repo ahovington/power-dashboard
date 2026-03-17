@@ -19,6 +19,7 @@ import (
 	"log/slog"
 	"os"
 	"time"
+	_ "time/tzdata" // embed IANA timezone database for alpine containers
 
 	"github.com/ahovingtonpower-dashboard/pkg/fake"
 	"github.com/jackc/pgx/v5"

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	_ "time/tzdata" // embed IANA timezone database for alpine containers
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
