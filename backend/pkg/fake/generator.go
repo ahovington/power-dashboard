@@ -76,6 +76,22 @@ func BatteryState(cfg FakeConfig, t time.Time) (chargePercent float64, direction
 	return charge, direction
 }
 
+// BatteryStep advances the battery state by one interval step.
+// Use this in loops instead of BatteryState to avoid O(n²) re-integration from midnight.
+// prev is the charge percentage from the previous step (start with 50.0 for midnight).
+// intervalHours is the step size in fractional hours (e.g. 5.0/60.0 for 5-minute steps).
+func BatteryStep(cfg FakeConfig, prev float64, produced, consumed int, intervalHours float64) (chargePercent float64, direction string) {
+	cap := float64(cfg.BatteryCapWh)
+	deltaPercent := (float64(produced-consumed) * intervalHours / cap) * 100
+	chargePercent = math.Max(10, math.Min(95, prev+deltaPercent))
+	if produced >= consumed {
+		direction = "charging"
+	} else {
+		direction = "discharging"
+	}
+	return
+}
+
 // Frequency returns grid frequency (60 Hz) with small deterministic jitter.
 func Frequency(cfg FakeConfig, t time.Time) float64 {
 	return 60.0 + Jitter(cfg.Seed+5, t, 0.05)

@@ -1,6 +1,7 @@
 // cmd/seed inserts synthetic historical data into the database using the fake
-// provider generator. Run this once to populate power_readings so the history
-// API endpoint returns meaningful chart data without a real Enphase system.
+// provider generator. Run this once to populate power_readings and battery_status
+// so the history and battery API endpoints return meaningful data without a real
+// Enphase system.
 //
 // Usage:
 //
@@ -68,8 +69,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	slog.Info("done", "rows_inserted", inserted, "device_id", fake.FakeDeviceID)
-	fmt.Printf("Seeded %d power readings for device %s\n", inserted, fake.FakeDeviceID)
+	batteryInserted, err := seedBattery(ctx, pool, cfg, start, end, *interval)
+	if err != nil {
+		slog.Error("seed battery", "error", err)
+		os.Exit(1)
+	}
+
+	slog.Info("done", "power_rows", inserted, "battery_rows", batteryInserted, "device_id", fake.FakeDeviceID)
+	fmt.Printf("Seeded %d power readings and %d battery rows for device %s\n", inserted, batteryInserted, fake.FakeDeviceID)
 	fmt.Printf("Use device_id=%s in API requests.\n", fake.FakeDeviceID)
 }
 
@@ -175,6 +182,75 @@ func seedReadings(ctx context.Context, pool *pgxpool.Pool, cfg fake.FakeConfig, 
 	)
 	if err != nil {
 		return 0, fmt.Errorf("copy from: %w", err)
+	}
+	return n, nil
+}
+
+// seedBattery bulk-inserts battery_status rows for every reading timestamp.
+// Charge state is tracked iteratively (O(n)) — charge resets to 50% at midnight
+// each day and steps forward using BatteryStep rather than re-integrating from
+// midnight on every call (which would be O(n²) over 30 days).
+func seedBattery(ctx context.Context, pool *pgxpool.Pool, cfg fake.FakeConfig, start, end time.Time, interval time.Duration) (int64, error) {
+	cfg = cfg.WithDefaults()
+
+	columns := []string{
+		"device_id", "reading_timestamp",
+		"charge_percentage", "state_of_health",
+		"power_flowing", "power_direction",
+		"capacity_wh", "temperature",
+	}
+
+	var rows [][]any
+
+	var (
+		prevDay       time.Time
+		chargePercent = 50.0
+	)
+
+	intervalHours := interval.Hours()
+
+	for ts := start; !ts.After(end); ts = ts.Add(interval) {
+		day := time.Date(ts.Year(), ts.Month(), ts.Day(), 0, 0, 0, 0, ts.Location())
+		if day != prevDay {
+			chargePercent = 50.0 // reset each day
+			prevDay = day
+		}
+
+		produced := fake.SolarWatts(cfg, ts)
+		consumed := fake.ConsumptionWatts(cfg, ts)
+		chargePercent, dir := fake.BatteryStep(cfg, chargePercent, produced, consumed, intervalHours)
+
+		powerFlowing := produced - consumed
+		if powerFlowing < 0 {
+			powerFlowing = -powerFlowing
+		}
+
+		rows = append(rows, []any{
+			fake.FakeDeviceID,
+			ts.UTC(),
+			chargePercent,
+			94, // state_of_health — constant for fake data
+			powerFlowing,
+			dir,
+			cfg.BatteryCapWh,
+			25.0 + fake.Jitter(cfg.Seed+10, ts, 2.0),
+		})
+	}
+
+	conn, err := pool.Acquire(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("acquire connection: %w", err)
+	}
+	defer conn.Release()
+
+	n, err := conn.Conn().CopyFrom(
+		ctx,
+		pgx.Identifier{"battery_status"},
+		columns,
+		pgx.CopyFromRows(rows),
+	)
+	if err != nil {
+		return 0, fmt.Errorf("copy from battery: %w", err)
 	}
 	return n, nil
 }
