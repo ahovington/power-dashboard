@@ -42,6 +42,21 @@ func (m *MockReadingQuerier) EXPECT() *MockReadingQuerierMockRecorder {
 	return m.recorder
 }
 
+// GetLatestBatteryStatus mocks base method.
+func (m *MockReadingQuerier) GetLatestBatteryStatus(ctx context.Context, deviceID uuid.UUID) (*model.BatteryStatus, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLatestBatteryStatus", ctx, deviceID)
+	ret0, _ := ret[0].(*model.BatteryStatus)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLatestBatteryStatus indicates an expected call of GetLatestBatteryStatus.
+func (mr *MockReadingQuerierMockRecorder) GetLatestBatteryStatus(ctx, deviceID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestBatteryStatus", reflect.TypeOf((*MockReadingQuerier)(nil).GetLatestBatteryStatus), ctx, deviceID)
+}
+
 // GetAggregatedReadings mocks base method.
 func (m *MockReadingQuerier) GetAggregatedReadings(ctx context.Context, deviceID uuid.UUID, interval string, start, end time.Time) ([]*model.PowerReading, error) {
 	m.ctrl.T.Helper()

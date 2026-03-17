@@ -83,6 +83,62 @@ func TestGetLatestReadings_EmptyReturnsNilNotError(t *testing.T) {
 	assert.Empty(t, readings)
 }
 
+func TestSaveBatteryStatus_Persists(t *testing.T) {
+	db := setupDB(t)
+	repo := repository.NewReadingRepository(db)
+
+	deviceID := uuid.New()
+	ts := time.Now().UTC().Truncate(time.Second)
+
+	err := repo.SaveBatteryStatus(context.Background(), &model.BatteryStatus{
+		DeviceID:         deviceID,
+		ReadingTimestamp: ts,
+		ChargePercentage: 75.5,
+		StateOfHealth:    94,
+		PowerFlowing:     1200,
+		PowerDirection:   "charging",
+		CapacityWh:       10000,
+		Temperature:      25.3,
+	})
+	require.NoError(t, err)
+
+	b, err := repo.GetLatestBatteryStatus(context.Background(), deviceID)
+	require.NoError(t, err)
+	require.NotNil(t, b)
+	assert.InDelta(t, 75.5, b.ChargePercentage, 0.01)
+	assert.Equal(t, "charging", b.PowerDirection)
+	assert.Equal(t, 1200, b.PowerFlowing)
+}
+
+func TestSaveBatteryStatus_DuplicateIsIgnored(t *testing.T) {
+	db := setupDB(t)
+	repo := repository.NewReadingRepository(db)
+
+	deviceID := uuid.New()
+	ts := time.Now().UTC()
+	b := &model.BatteryStatus{
+		DeviceID: deviceID, ReadingTimestamp: ts,
+		ChargePercentage: 50.0, PowerDirection: "discharging",
+	}
+
+	require.NoError(t, repo.SaveBatteryStatus(context.Background(), b))
+	require.NoError(t, repo.SaveBatteryStatus(context.Background(), b),
+		"ON CONFLICT DO NOTHING should silently skip duplicate")
+
+	result, err := repo.GetLatestBatteryStatus(context.Background(), deviceID)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+}
+
+func TestGetLatestBatteryStatus_NoDataReturnsNil(t *testing.T) {
+	db := setupDB(t)
+	repo := repository.NewReadingRepository(db)
+
+	b, err := repo.GetLatestBatteryStatus(context.Background(), uuid.New())
+	assert.NoError(t, err)
+	assert.Nil(t, b)
+}
+
 func TestGetAggregatedReadings_HourlyBuckets(t *testing.T) {
 	db := setupDB(t)
 	repo := repository.NewReadingRepository(db)

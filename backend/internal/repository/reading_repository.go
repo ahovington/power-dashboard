@@ -2,11 +2,13 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/ahovingtonpower-dashboard/internal/model"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -40,6 +42,58 @@ func (r *ReadingRepository) SaveReading(ctx context.Context, reading *model.Powe
 		return fmt.Errorf("repository: save reading: %w", err)
 	}
 	return nil
+}
+
+// SaveBatteryStatus persists one battery status row. ON CONFLICT DO NOTHING
+// prevents duplicates on restart re-polls.
+func (r *ReadingRepository) SaveBatteryStatus(ctx context.Context, b *model.BatteryStatus) error {
+	_, err := r.db.Exec(ctx, `
+		INSERT INTO battery_status (
+			device_id, reading_timestamp,
+			charge_percentage, state_of_health,
+			power_flowing, power_direction,
+			capacity_wh, temperature
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+		ON CONFLICT (device_id, reading_timestamp) DO NOTHING`,
+		b.DeviceID,
+		b.ReadingTimestamp.UTC(),
+		b.ChargePercentage, b.StateOfHealth,
+		b.PowerFlowing, b.PowerDirection,
+		b.CapacityWh, b.Temperature,
+	)
+	if err != nil {
+		return fmt.Errorf("repository: save battery status: %w", err)
+	}
+	return nil
+}
+
+// GetLatestBatteryStatus returns the most recent battery row for a device,
+// or nil if no data exists yet.
+func (r *ReadingRepository) GetLatestBatteryStatus(ctx context.Context, deviceID uuid.UUID) (*model.BatteryStatus, error) {
+	b := &model.BatteryStatus{}
+	err := r.db.QueryRow(ctx, `
+		SELECT id, device_id, reading_timestamp,
+		       charge_percentage, state_of_health,
+		       power_flowing, power_direction,
+		       capacity_wh, temperature, created_at
+		FROM battery_status
+		WHERE device_id = $1
+		ORDER BY reading_timestamp DESC
+		LIMIT 1`,
+		deviceID,
+	).Scan(
+		&b.ID, &b.DeviceID, &b.ReadingTimestamp,
+		&b.ChargePercentage, &b.StateOfHealth,
+		&b.PowerFlowing, &b.PowerDirection,
+		&b.CapacityWh, &b.Temperature, &b.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("repository: get latest battery status: %w", err)
+	}
+	return b, nil
 }
 
 func (r *ReadingRepository) GetLatestReadings(ctx context.Context, deviceID uuid.UUID, limit int) ([]*model.PowerReading, error) {
