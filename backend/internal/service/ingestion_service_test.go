@@ -16,16 +16,30 @@ import (
 	"github.com/ahovingtonpower-dashboard/pkg/adapter"
 )
 
-type stubRepo struct{ saved []*model.PowerReading }
+type stubRepo struct {
+	saved        []*model.PowerReading
+	savedBattery []*model.BatteryStatus
+}
 
 func (s *stubRepo) SaveReading(_ context.Context, r *model.PowerReading) error {
 	s.saved = append(s.saved, r)
 	return nil
 }
 
+func (s *stubRepo) SaveBatteryStatus(_ context.Context, b *model.BatteryStatus) error {
+	s.savedBattery = append(s.savedBattery, b)
+	return nil
+}
+
 type failingRepo struct{ err error }
 
-func (r *failingRepo) SaveReading(_ context.Context, _ *model.PowerReading) error { return r.err }
+func (r *failingRepo) SaveReading(_ context.Context, _ *model.PowerReading) error {
+	return r.err
+}
+
+func (r *failingRepo) SaveBatteryStatus(_ context.Context, _ *model.BatteryStatus) error {
+	return nil // battery save non-fatal, but let power reading fail
+}
 
 func TestIngestionService_PublishesEventOnSuccess(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -35,6 +49,7 @@ func TestIngestionService_PublishesEventOnSuccess(t *testing.T) {
 	mockAdapter.EXPECT().GetSystemStatus(gomock.Any()).Return(&adapter.SystemStatus{
 		PowerProduced: 5000, PowerConsumed: 3000,
 	}, nil)
+	mockAdapter.EXPECT().GetBatteryStatus(gomock.Any()).Return(nil, nil)
 
 	repo := &stubRepo{}
 	bus := make(chan model.PowerEvent, 8)
@@ -60,6 +75,116 @@ func TestIngestionService_PublishesEventOnSuccess(t *testing.T) {
 	// Verify reading was also persisted
 	require.Len(t, repo.saved, 1)
 	assert.Equal(t, 5000, repo.saved[0].PowerProduced)
+}
+
+func TestIngestionService_BatteryDataSavedAndPublished(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockAdapter := adapter.NewMockProviderAdapter(ctrl)
+	mockAdapter.EXPECT().GetSystemStatus(gomock.Any()).Return(&adapter.SystemStatus{
+		PowerProduced: 4000, PowerConsumed: 2000,
+	}, nil)
+	mockAdapter.EXPECT().GetBatteryStatus(gomock.Any()).Return(&adapter.BatteryStatus{
+		ChargePercentage: 80.0,
+		PowerFlowing:     500,
+		PowerDirection:   "charging",
+		StateOfHealth:    95,
+		CapacityWh:       10000,
+		Temperature:      26.0,
+	}, nil)
+
+	repo := &stubRepo{}
+	bus := make(chan model.PowerEvent, 8)
+	trigger := make(chan time.Time, 1)
+
+	svc := service.NewIngestionService(mockAdapter, repo, bus, uuid.New(), trigger)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go svc.RunPoller(ctx)
+
+	trigger <- time.Now()
+
+	select {
+	case event := <-bus:
+		require.NotNil(t, event.BatteryW)
+		assert.Equal(t, 500, *event.BatteryW)
+		assert.Equal(t, "charging", event.BatteryDirection)
+		require.NotNil(t, event.BatteryCharge)
+		assert.InDelta(t, 80.0, *event.BatteryCharge, 0.01)
+	case <-time.After(time.Second):
+		t.Fatal("no event received within 1s")
+	}
+
+	require.Len(t, repo.savedBattery, 1)
+	assert.InDelta(t, 80.0, repo.savedBattery[0].ChargePercentage, 0.01)
+}
+
+func TestIngestionService_BatteryNilSkipsSilently(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockAdapter := adapter.NewMockProviderAdapter(ctrl)
+	mockAdapter.EXPECT().GetSystemStatus(gomock.Any()).Return(&adapter.SystemStatus{
+		PowerProduced: 3000, PowerConsumed: 2000,
+	}, nil)
+	mockAdapter.EXPECT().GetBatteryStatus(gomock.Any()).Return(nil, nil)
+
+	repo := &stubRepo{}
+	bus := make(chan model.PowerEvent, 8)
+	trigger := make(chan time.Time, 1)
+
+	svc := service.NewIngestionService(mockAdapter, repo, bus, uuid.New(), trigger)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go svc.RunPoller(ctx)
+
+	trigger <- time.Now()
+
+	select {
+	case event := <-bus:
+		assert.Nil(t, event.BatteryW)
+		assert.Nil(t, event.BatteryCharge)
+		assert.Empty(t, event.BatteryDirection)
+	case <-time.After(time.Second):
+		t.Fatal("no event received within 1s")
+	}
+
+	assert.Empty(t, repo.savedBattery)
+}
+
+func TestIngestionService_BatteryErrorIsNonFatal(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockAdapter := adapter.NewMockProviderAdapter(ctrl)
+	mockAdapter.EXPECT().GetSystemStatus(gomock.Any()).Return(&adapter.SystemStatus{
+		PowerProduced: 2000, PowerConsumed: 1500,
+	}, nil)
+	mockAdapter.EXPECT().GetBatteryStatus(gomock.Any()).Return(nil, errors.New("battery API timeout"))
+
+	repo := &stubRepo{}
+	bus := make(chan model.PowerEvent, 8)
+	trigger := make(chan time.Time, 1)
+
+	svc := service.NewIngestionService(mockAdapter, repo, bus, uuid.New(), trigger)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go svc.RunPoller(ctx)
+
+	trigger <- time.Now()
+
+	// Power event should still be published despite battery error
+	select {
+	case event := <-bus:
+		assert.Equal(t, 2000, event.PowerProduced)
+		assert.Nil(t, event.BatteryW)
+	case <-time.After(time.Second):
+		t.Fatal("no event received within 1s — battery error should be non-fatal")
+	}
 }
 
 func TestIngestionService_PanicIsRecovered(t *testing.T) {

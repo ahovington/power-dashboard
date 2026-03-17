@@ -14,6 +14,7 @@ import (
 
 type ReadingWriter interface {
 	SaveReading(ctx context.Context, r *model.PowerReading) error
+	SaveBatteryStatus(ctx context.Context, b *model.BatteryStatus) error
 }
 
 // IngestionService polls a ProviderAdapter on every tick, persists readings,
@@ -106,6 +107,31 @@ func (s *IngestionService) pollOnce(ctx context.Context) error {
 		PowerConsumed: status.PowerConsumed,
 		PowerNet:      status.PowerProduced - status.PowerConsumed,
 	}
+
+	battery, err := s.adapter.GetBatteryStatus(ctx)
+	if err != nil {
+		slog.Warn("ingestion: battery status unavailable", "device_id", s.deviceID, "error", err)
+	}
+	if battery != nil {
+		if err := s.repo.SaveBatteryStatus(ctx, &model.BatteryStatus{
+			DeviceID:         s.deviceID,
+			ReadingTimestamp: now,
+			ChargePercentage: battery.ChargePercentage,
+			StateOfHealth:    battery.StateOfHealth,
+			PowerFlowing:     battery.PowerFlowing,
+			PowerDirection:   battery.PowerDirection,
+			CapacityWh:       battery.CapacityWh,
+			Temperature:      battery.Temperature,
+		}); err != nil {
+			slog.Warn("ingestion: battery save failed", "device_id", s.deviceID, "error", err)
+		} else {
+			charge := battery.ChargePercentage
+			event.BatteryCharge = &charge
+			event.BatteryW = &battery.PowerFlowing
+			event.BatteryDirection = battery.PowerDirection
+		}
+	}
+
 	select {
 	case s.eventBus <- event:
 	default:
