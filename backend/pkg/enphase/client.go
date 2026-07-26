@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/ahovingtonpower-dashboard/pkg/adapter"
@@ -15,6 +17,7 @@ const defaultBaseURL = "https://api.enphaseenergy.com/api/v4"
 type Adapter struct {
 	cfg    Config
 	client *http.Client
+	mu     sync.Mutex // guards cfg.AccessToken during refresh
 }
 
 func NewAdapter(cfg Config) *Adapter {
@@ -27,14 +30,32 @@ func NewAdapter(cfg Config) *Adapter {
 	return &Adapter{cfg: cfg, client: &http.Client{Timeout: cfg.RequestTimeout}}
 }
 
-// get is the shared HTTP helper: sets auth, checks status code, decodes JSON.
-// All adapter methods call this rather than duplicating HTTP boilerplate.
+// get executes an authenticated GET request. On 401 it attempts a token
+// refresh once (if a refresh token is configured) and retries.
 func (a *Adapter) get(ctx context.Context, path string, out interface{}) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.cfg.BaseURL+path, nil)
+	if err := a.doGet(ctx, path, out); err != adapter.ErrAuthExpired {
+		return err
+	}
+	// 401 — try refreshing the access token then retry once
+	if err := a.refresh(); err != nil {
+		slog.Warn("enphase: token refresh failed, returning auth error", "error", err)
+		return adapter.ErrAuthExpired
+	}
+	return a.doGet(ctx, path, out)
+}
+
+func (a *Adapter) doGet(ctx context.Context, path string, out interface{}) error {
+	a.mu.Lock()
+	token := a.cfg.AccessToken
+	apiKey := a.cfg.APIKey
+	a.mu.Unlock()
+
+	reqURL := a.cfg.BaseURL + path + "?key=" + apiKey
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		return fmt.Errorf("enphase: build request: %w", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+a.cfg.APIKey)
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	resp, err := a.client.Do(req)
 	if err != nil {
@@ -55,6 +76,34 @@ func (a *Adapter) get(ctx context.Context, path string, out interface{}) error {
 	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
 		return fmt.Errorf("enphase: decode response from %s: %w", path, err)
 	}
+	return nil
+}
+
+// refresh exchanges the stored refresh token for a new access token.
+func (a *Adapter) refresh() error {
+	a.mu.Lock()
+	refreshToken := a.cfg.RefreshToken
+	clientID := a.cfg.ClientID
+	clientSecret := a.cfg.ClientSecret
+	a.mu.Unlock()
+
+	if refreshToken == "" || clientID == "" || clientSecret == "" {
+		return fmt.Errorf("enphase: no refresh token or client credentials configured")
+	}
+
+	t, err := RefreshAccessToken(clientID, clientSecret, refreshToken)
+	if err != nil {
+		return err
+	}
+
+	a.mu.Lock()
+	a.cfg.AccessToken = t.AccessToken
+	if t.RefreshToken != "" {
+		a.cfg.RefreshToken = t.RefreshToken
+	}
+	a.mu.Unlock()
+
+	slog.Info("enphase: access token refreshed")
 	return nil
 }
 

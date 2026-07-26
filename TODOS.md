@@ -182,7 +182,7 @@ if !ok {
 
 ---
 
-### [P2/M] Wire BatteryCard once backend exposes battery data
+### ~~[P2/M] Wire BatteryCard once backend exposes battery data~~ ✓ DONE (ticket 001)
 **What:** Add `battery_charge_pct`, `battery_power_w`, and `battery_direction` fields to `PowerStatus` and `PowerEvent` API responses. Implement `BatteryCard` component in the frontend (plan exists in IMPLEMENTATION.md Step 8 — removed from MVP but preserved as a template). Wire `GetBatteryStatus()` in the Enphase adapter (currently returns `nil, nil`).
 **Why:** Battery state (charge %, charging vs discharging, wattage) is core to the "home energy system" dashboard concept. It was removed from MVP only because the backend returns no data yet, not because it's unimportant.
 **How to apply:** 1. Extend `PowerReading` model and DB schema with battery columns. 2. Implement `GetBatteryStatus()` in Enphase adapter using the `/ivp/ensemble/inventory` endpoint. 3. Merge battery state into `PowerStatus` API response. 4. Restore `BatteryCard` component from IMPLEMENTATION.md Step 8 template.

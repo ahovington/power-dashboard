@@ -5,6 +5,10 @@ import "time"
 type Config struct {
 	APIKey         string
 	SystemID       string
+	ClientID       string
+	ClientSecret   string
+	AccessToken    string
+	RefreshToken   string
 	BaseURL        string        // override in tests; defaults to Enphase production URL
 	RequestTimeout time.Duration // defaults to 15s
 }

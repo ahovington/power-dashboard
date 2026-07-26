@@ -54,6 +54,10 @@ rebuild service:
 sh service:
     docker compose exec {{service}} sh
 
+# Authenticate with Enphase — opens browser OAuth2 flow, prints tokens for .env
+auth-enphase:
+    cd backend && go run ./cmd/enphase-auth
+
 # Run backend tests
 test:
     cd backend && go test -race ./...
